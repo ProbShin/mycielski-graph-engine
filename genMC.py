@@ -1,21 +1,23 @@
 #! /usr/bin/python3
-#### File Name: mGenMC.py
-#### Author: Xin Cheng
-#### Descriptions: 
-#### Created Time: Mon 30 Jan 2017 10:29:03 AM EST
-#### -------------------------------------------------
-#### 
-#### Mycielski Graphs Generator
-#### The graph G as stored as List of List
-#### w = G[v][i]
-#### represent vertex w is the i-th neightbor of vertex v
-#### zeor-based
-#### -----------------------------------------------------
+__author__ xc
 
+"""
+Mycielski Graphs Generator
+
+Usage: ./genMC <k>
+
+The graph within the code are stored as List of List
+w = G[v][i]  
+represents 'vertex w is the i-th neightbor of vertex v'
+all vertex is zeor-based
+
+"""
 
 import sys
 
-
+'''
+return G
+'''
 def genMC(k):
     if k<1:
         print("err! invalid input %d"%k)
@@ -32,6 +34,7 @@ def genMC(k):
         for i in range(siz):                                        # previous nodes 
             G[i] += [w+siz for w in G[i]]
         G+=Gnew
+    
     return G
 
 def mm_write(G,gname,k):
@@ -45,6 +48,13 @@ def mm_write(G,gname,k):
                 if(i>j):
                     print("%d %d"%(i+1,j+1), file=f)
     return
+
+
+def RndMC_onestep(G):
+    siz = len(G)  #current number of nodes
+    '''TODO'''
+
+
 
 
 def usage():
