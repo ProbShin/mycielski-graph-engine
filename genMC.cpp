@@ -167,14 +167,61 @@ void AdjGraph::write_mm_out(const string& file_name){
 //
 // ============================================================================
 MycielskiGraphEngine::std_propagate(INT steps){
-    vector<INT> new_nodes;
+    vector<INT>&  nzd_nodes;
+    unordered_map<INT, vector<INT>>& G;
+    INT& N = num_nodes_;
+    INT& M = num_edges_;
+
+    for(step_cnt=0; step_cnt<steps; step_cnt++){
+        INT edge_increament=0;
+        const INT ORG_NZD_SIZE = nzd_nodes.size();
+        // the duplicated vertex copy the neighbers, and adding extra vertex
+        for(INT i=0; i<ORG_NZD_SIZE; i++){
+            INT v = nzd_nodes[i];
+            INT w = v + N;
+            G[w].reserve(G[v].size()+1);
+            G[w].assign(G[v].begin(), G[v].end());
+            G[w].push_back(2*N+1);
+            edge_increament+=G[v].size();
+            nzd_nodes.push_back(v);
+        }
+        // adding the extra vertex
+        G[2*N+1].reserve(ORG_NZD_SIZE);
+        G[2*N+1].assign(nzd_nodes.begin()+ORG_NZD_SIZE, nzd_nodes.end());
+        edge_increament+=N;
+        nzd_nodes.push_back(2*N+1);
+        // original vertex doubled degrees
+        for(INT i=0; i<ORG_NZD_SIZE; i++){
+            INT v=nzd_nodes[i];
+            vector<INT>& Gv=G[v];
+            for(INT j=0,jEnd=Gv.size(); j<jEnd; j++) {
+                Gv.append(Gv[j]+N);
+                edge_increament++;
+            }
+        }
+        N=2*N+1;
+        M=M+edge_increament/2;
+    }// end of for steps
+    return;
 }
 
 // ============================================================================
 //
 // ============================================================================
-MycielskiGraphEngine::rnd_propagate(unordered_map<INT, vector<INT>>&G, vector<INT>&list_of_nodes, INT steps){
+MycielskiGraphEngine::rnd_propagate(INT steps){
+    vector<INT>&  nzd_nodes;
+    unordered_map<INT, vector<INT>>& G;
+    INT& N = num_nodes_;
+    INT& M = num_edges_;
 
+    for(step_cnt=0; step_cnt<steps; step_cnt++) {
+        INT edge_increament=0;
+        const INT ORG_NZD_SIZE = nzd_nodes.size();
+        // duplicate nodes
+
+
+    }
+    return;
 }
 
 // ============================================================================
