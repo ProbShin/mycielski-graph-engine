@@ -63,13 +63,14 @@ public:
 protected:
     vector<vector<INT>> G_;
     INT num_edges_;
+public: void dump();
 };
 
 
 class MycielskiGraphEngine: public AdjGraph{
 public:
     MycielskiGraphEngine(){ reset(); }
-    MycielskiGraphEngine(const string &f){ AdjGraph::reset(f); }
+    MycielskiGraphEngine(const string &f){ if(f.empty()) reset(); else AdjGraph::reset(f); }
     virtual ~MycielskiGraphEngine(){};
 public:
     virtual void std_propagate(INT steps);

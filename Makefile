@@ -4,7 +4,7 @@
 #        delete OMP_FLAG=-fopenmp in MAC OS system
 SRC = $(wildcard *.cpp)
 OBJ = $(SRC:%.cpp=%.o)
-EXE = a.out
+EXE = MCEngine.out
 
 
 # compiler
