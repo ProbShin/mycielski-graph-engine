@@ -4,8 +4,14 @@
     Descriptions: 
     Created Time: Thu 12 Apr 2018 02:16:55 PM EDT
 *********************************************************************/
-
+#include <sstream>
+#include <fstream>
+#include <unordered_map>
+#include <unordered_set>
+#include <algorithm>
+#include <random>
 #include "genMC.hpp"
+
 using namespace std;
 
 // ============================================================================
@@ -22,17 +28,16 @@ void AdjGraph::reset(const string &f){
         read_mm_struct_only(f);
     }
     else{
-        fpirntf(stderr,"Err! the matrix file %s cannot be read. Currently only supported .mtx format formt.\n", f.c_str());
+        fprintf(stderr,"Err! the matrix file %s cannot be read. Currently only supported .mtx format formt.\n", f.c_str());
     }
 }
 
 // ============================================================================
 // read_mm_struct_only(f);
 // ============================================================================
-AdjGraph::read_mm_struct_only(file_name){
-    list_of_nodes_.clear(); 
-    list_of_nodes_.shrink_to_fit();
+void AdjGraph::read_mm_struct_only(const string&file_name){
     G_.clear();
+    G_.shrink_to_fit();
     bool b_symmetric = true;
     string line;
     istringstream ss;
@@ -45,7 +50,7 @@ AdjGraph::read_mm_struct_only(file_name){
 
     ifstream in(file_name.c_str());
     if(!in) {
-        fprintf(stderr,"Err! the matrix file %S cannot be open.\n", file_name.c_str());
+        fprintf(stderr,"Err! the matrix file %s cannot be open.\n", file_name.c_str());
         exit(1);
     }
     getline(in,line);
@@ -63,23 +68,23 @@ AdjGraph::read_mm_struct_only(file_name){
             exit(1);
         }
         if(Tag5=="general") {
-            fprintf(stderr,"Warning, the non-symmetric matrix %s, will be convert to symmetric by adding corresponding edge.\n");
+            fprintf(stderr,"Warning, the non-symmetric matrix %s, will be convert to symmetric by adding corresponding edge.\n", file_name.c_str());
             b_symmetric=false;
         }
     }
     
-    do{
-        getline(in,line);
+    do getline(in,line);
     while(!line.empty() && line[0]=='%');
     
     if(line.empty()) {
-        fprintf(stderr, "Err! file %s Matrix Market format is wrong? Meet a blank line?\n", file_name);
+        fprintf(stderr, "Err! file %s Matrix Market format is wrong? Meet a blank line?\n", file_name.c_str());
         exit(1);
     }
 
     ss.str(line);
     int nrows, ncols, nnz;
     ss>>nrows>>ncols>>nnz;
+    G_.resize(max(nrows, ncols));
     int entry_counter=0;
     if(b_symmetric) {
         do{
@@ -91,14 +96,14 @@ AdjGraph::read_mm_struct_only(file_name){
             int row,col;
             ss>>row>>col;
             if(row<col) {
-                fprintf(stderr,"Err! Find an entry (row,col)=(%d, %d) in upper part of symmtric matrix %s.\n", row, col, file_name);
+                fprintf(stderr,"Err! Find an entry (row,col)=(%d, %d) in upper part of symmtric matrix %s.\n", row, col, file_name.c_str());
                 exit(1);
             }
             row--; col--;
-            G[row].push_back(col);
-            G[col].push_back(row);
-            edge_count++;
-        }while(!in.eof && entry_counter<nnz) 
+            G_[row].push_back(col);
+            G_[col].push_back(row);
+            edge_count+=2;
+        }while( (!in.eof()) && entry_counter<nnz);
     }  // end of if b_symmetric
     else{
         do{
@@ -110,13 +115,13 @@ AdjGraph::read_mm_struct_only(file_name){
             int row, col;
             ss>>row>>col;
             row--; col--;
-            G[row].push_back(col);
-            G[col].push_back(row);
-        }while(!in.eof && entry_counter<nnz)
-        for(auto &piv : G_){
-            sort(piv.second.begin(), piv.second.end());
-            piv.second.erase( unique(piv.second.begin(), piv.second.end()), piv.second.end());
-            edge_count+=piv.second.size();
+            G_[row].push_back(col);
+            G_[col].push_back(row);
+        }while((!in.eof()) && entry_counter<nnz);
+        for(auto &vec : G_){
+            sort(vec.begin(), vec.end());
+            vec.erase( unique(vec.begin(), vec.end()), vec.end());
+            edge_count+=vec.size();
         }
         edge_count/=2;
     } // end of else b_symmetric
@@ -126,14 +131,7 @@ AdjGraph::read_mm_struct_only(file_name){
         fprintf(stderr,"Error! Matrix file %s size %d %d %d does not contains enough entries %d as expected\nPossibily because of file truncate! Check the files\n", file_name.c_str(), nrows, ncols, nnz, entry_counter);
         exit(1);
     }
-
-    num_nodes_=max(nrows, ncols);
-    num_deges_=edge_count;
-    list_nzdeg_nodes_reserve(G_.size());
-    for(const auto & piv : G_) {
-        list_nzdeg_nodes.push_back(piv.first);
-    }
-    sort(list_nzdeg.begin(), list_nzdeg.end());
+    num_edges_=edge_count;
 }
 
 // ============================================================================
@@ -152,11 +150,12 @@ void AdjGraph::write_mm_out(const string& file_name){
 
     out<<"\%\%MatrixMarket matrix coordinate pattern symmetric\n";
     out<<"\% nothing\n";
-    out<<num_nodes_<<" "<<num_nodes_<<" "<<num_edges<<endl;
-    for(auto x: list_nzdeg_nodes){
-        for(auto y: G_[x]){
-            if(x<y) continue;
-            cout<<x<<" "<<y"\n";
+    
+    out<<G_.size()<<" "<<G_.size()<<" "<<num_edges_<<endl;
+    for(INT y=0, yEnd=G_.size(); y<yEnd; y++) {
+        for(auto x: G_[y]){
+            if(x<=y) continue;
+            out<<x+1<<" "<<y+1<<"\n";
         }
     }
     out.close();
@@ -166,40 +165,38 @@ void AdjGraph::write_mm_out(const string& file_name){
 // ============================================================================
 //
 // ============================================================================
-MycielskiGraphEngine::std_propagate(INT steps){
-    vector<INT>&  nzd_nodes;
-    unordered_map<INT, vector<INT>>& G;
-    INT& N = num_nodes_;
+void MycielskiGraphEngine::std_propagate(INT steps){
+    vector<vector<INT>>& G=G_;
     INT& M = num_edges_;
+    
 
-    for(step_cnt=0; step_cnt<steps; step_cnt++){
+    for(INT step_cnt=0; step_cnt<steps; step_cnt++){
+        const INT N = G_.size();
         INT edge_increament=0;
-        const INT ORG_NZD_SIZE = nzd_nodes.size();
         // the duplicated vertex copy the neighbers, and adding extra vertex
-        for(INT i=0; i<ORG_NZD_SIZE; i++){
-            INT v = nzd_nodes[i];
+        G.resize(2*N+1);
+        for(INT v=0; v<N; v++){
             INT w = v + N;
             G[w].reserve(G[v].size()+1);
             G[w].assign(G[v].begin(), G[v].end());
-            G[w].push_back(2*N+1);
-            edge_increament+=G[v].size();
-            nzd_nodes.push_back(v);
+            G[w].push_back(2*N+1-1);
+            edge_increament+=G[w].size();
         }
         // adding the extra vertex
-        G[2*N+1].reserve(ORG_NZD_SIZE);
-        G[2*N+1].assign(nzd_nodes.begin()+ORG_NZD_SIZE, nzd_nodes.end());
+        G[2*N+1-1].reserve(N);
+        for(INT v=0; v<N; v++)
+            G[2*N+1-1].push_back(v+N);
         edge_increament+=N;
-        nzd_nodes.push_back(2*N+1);
         // original vertex doubled degrees
-        for(INT i=0; i<ORG_NZD_SIZE; i++){
-            INT v=nzd_nodes[i];
+        for(INT v=0; v<N; v++){
             vector<INT>& Gv=G[v];
-            for(INT j=0,jEnd=Gv.size(); j<jEnd; j++) {
-                Gv.append(Gv[j]+N);
-                edge_increament++;
+            INT Nloc = Gv.size();
+            Gv.resize(2*Nloc);
+            edge_increament+=Nloc;
+            for(INT w=0; w<Nloc; w++) {
+                Gv.push_back(Gv[w]+N);
             }
         }
-        N=2*N+1;
         M=M+edge_increament/2;
     }// end of for steps
     return;
@@ -208,19 +205,36 @@ MycielskiGraphEngine::std_propagate(INT steps){
 // ============================================================================
 //
 // ============================================================================
-MycielskiGraphEngine::rnd_propagate(INT steps){
-    vector<INT>&  nzd_nodes;
-    unordered_map<INT, vector<INT>>& G;
-    INT& N = num_nodes_;
+void MycielskiGraphEngine::rnd_propagate(INT steps){
+    vector<vector<INT>>& G = G_;
     INT& M = num_edges_;
 
-    for(step_cnt=0; step_cnt<steps; step_cnt++) {
+    for(INT step_cnt=0; step_cnt<steps; step_cnt++) {
+        const INT N = G_.size();
         INT edge_increament=0;
-        const INT ORG_NZD_SIZE = nzd_nodes.size();
+        G.resize(2*N+1);
         // duplicate nodes
-
-
-    }
+        unordered_map<INT,unordered_set<INT>> check_list;
+        for(INT i=0; i<M; i++) {
+            INT v1(0),v2(0),w1,w2;
+            random_pick_two_vertex_from_range(v1, v2, N, check_list);
+            w1=v1+N;
+            w2=v2+N;
+            G[v1].push_back(w2);
+            G[v2].push_back(w1);
+            G[w2].push_back(v1);
+            G[w1].push_back(v2);
+            edge_increament+=2;
+        }
+        for(INT v=0; v<N; v++) 
+            G[v+N].push_back(2*N+1-1);
+        // extra nodes
+        G[2*N+1-1].reserve(N);
+        for(int v=0; v<N; v++)
+            G[2*N+1-1].push_back(v+N);
+        edge_increament += N;
+        M=M+edge_increament;
+    }//end of steps
     return;
 }
 
@@ -228,15 +242,34 @@ MycielskiGraphEngine::rnd_propagate(INT steps){
 // the default state of standard Mycielski Graph is k=2, G={0:1,1:0}
 // ============================================================================
 void MycielskiGraphEngine::reset(){
-    list_nzdeg_nodes_.clear();
-    list_nzdeg_nodes_.push_back(0);
-    list_nzdeg_nodes_.push_back(1);
-    list_nzdeg_nodes_.shrink_to_fit();
     G_.clear();
+    G_.resize(2);
+    G_.shrink_to_fit();
     G_[0].push_back(1);
     G_[1].push_back(0);
-    num_nodes_=2;
     num_edges_=1;
+}
+
+// ============================================================================
+//
+// ============================================================================
+void MycielskiGraphEngine::random_pick_two_vertex_from_range(INT &v1, INT&v2, const INT N, unordered_map<INT,unordered_set<INT>>&check_list){
+    mt19937_64 mt(11234);
+    uniform_int_distribution<INT> dist(0, N-1);
+    bool bQuit=false;
+    do{    
+        v1=dist(mt);
+        do{
+            v2=dist(mt);
+        }while(v1==v2);
+
+        if(v1>v2) swap(v1,v2);
+        if(check_list.count(v1)==0 || check_list[v1].count(v2)==0){
+            check_list[v1].insert(v2);
+            bQuit=true;
+        }
+    }while(bQuit==false);
+    return;
 }
 
 

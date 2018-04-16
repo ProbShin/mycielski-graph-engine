@@ -1,2 +1,4 @@
 *.out
 *.mtx
+*.o
+log
