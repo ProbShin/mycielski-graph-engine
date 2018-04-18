@@ -10,6 +10,7 @@
 #include <unordered_set>
 #include <iostream>
 #include <vector>
+#include <random>
 using namespace std;
 
 /*
@@ -69,16 +70,18 @@ public: void dump();
 
 class MycielskiGraphEngine: public AdjGraph{
 public:
-    MycielskiGraphEngine(){ reset(); }
-    MycielskiGraphEngine(const string &f){ if(f.empty()) reset(); else AdjGraph::reset(f); }
+    MycielskiGraphEngine(): mt_(12345) { reset(); }
+    MycielskiGraphEngine(const string &f): mt_(12345) { if(f.empty()) reset(); else AdjGraph::reset(f); }
     virtual ~MycielskiGraphEngine(){};
 public:
     virtual void std_propagate(INT steps);
     virtual void rnd_propagate(INT steps);
+    void set_rseed(INT rseed){mt_.seed(rseed);}
 
-    void random_pick_two_vertex_from_range(INT &v1, INT&v2, const INT N, unordered_map<INT,unordered_set<INT>>&chech_list);
+    void random_pick_two_vertex_from_range(int &v1, int&v2, const int N, unordered_set<INT>&chech_list, uniform_int_distribution<INT>& dist);
 private:
     void reset();
+    mt19937_64 mt_;
 };
 
 

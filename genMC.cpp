@@ -40,14 +40,13 @@ void AdjGraph::read_mm_struct_only(const string&file_name){
     G_.shrink_to_fit();
     bool b_symmetric = true;
     string line;
-    istringstream ss;
+    stringstream ss;
     int edge_count=0;
     if(file_name.empty()) {
         fprintf(stderr,"ERR! The matrix file is empty.\n");
         exit(1);
     }
    
-
     ifstream in(file_name.c_str());
     if(!in) {
         fprintf(stderr,"Err! the matrix file %s cannot be open.\n", file_name.c_str());
@@ -72,7 +71,7 @@ void AdjGraph::read_mm_struct_only(const string&file_name){
             b_symmetric=false;
         }
     }
-    
+
     do getline(in,line);
     while(!line.empty() && line[0]=='%');
     
@@ -81,6 +80,7 @@ void AdjGraph::read_mm_struct_only(const string&file_name){
         exit(1);
     }
 
+    ss.clear();
     ss.str(line);
     int nrows, ncols, nnz;
     ss>>nrows>>ncols>>nnz;
@@ -92,6 +92,7 @@ void AdjGraph::read_mm_struct_only(const string&file_name){
             if(line.empty() || line[0]=='%') 
                 continue;
             entry_counter++;
+            ss.clear();
             ss.str(line);
             int row,col;
             ss>>row>>col;
@@ -125,6 +126,7 @@ void AdjGraph::read_mm_struct_only(const string&file_name){
         }
         edge_count/=2;
     } // end of else b_symmetric
+    
     
     in.close();
     if(entry_counter!=nnz) {
@@ -212,12 +214,19 @@ void MycielskiGraphEngine::rnd_propagate(INT steps){
         INT edge_increament=0;
         G.resize(2*N+1);
         // duplicate nodes
-        unordered_map<INT,unordered_set<INT>> check_list;
+        unordered_set<INT> check_list;
+        uniform_int_distribution<INT> dist(0, N*(N+1)/2-1);
+        
         for(INT i=0; i<M; i++) {
-            INT v1(0),v2(0),w1,w2;
-            random_pick_two_vertex_from_range(v1, v2, N, check_list);
+            int v1(0),v2(0);
+            INT w1,w2;
+            random_pick_two_vertex_from_range(v1, v2, N, check_list, dist);
             w1=v1+N;
             w2=v2+N;
+            if(w1>=2*N+1 || w2>=2*N+1 || v1>=2*N+1 || v2>= 2*N+1 ) {
+                fprintf(stderr,"wocao %lld %lld %d %d >= 2*N+1\n", w1,w2,v1,v2);
+                exit(1);
+            }
             G[v1].push_back(w2);
             G[v2].push_back(w1);
             G[w2].push_back(v1);
@@ -232,6 +241,7 @@ void MycielskiGraphEngine::rnd_propagate(INT steps){
             G[2*N+1-1].push_back(v+N);
         edge_increament += N;
         M=M+edge_increament;
+
     }//end of steps
     return;
 }
@@ -249,24 +259,34 @@ void MycielskiGraphEngine::reset(){
 }
 
 // ============================================================================
-//
+// N must great than 1. 
 // ============================================================================
-void MycielskiGraphEngine::random_pick_two_vertex_from_range(INT &v1, INT&v2, const INT N, unordered_map<INT,unordered_set<INT>>&check_list){
-    mt19937_64 mt(11234);
-    uniform_int_distribution<INT> dist(0, N-1);
-    bool bQuit=false;
-    do{    
-        v1=dist(mt);
-        do{
-            v2=dist(mt);
-        }while(v1==v2);
-
-        if(v1>v2) swap(v1,v2);
-        if(check_list.count(v1)==0 || check_list[v1].count(v2)==0){
-            check_list[v1].insert(v2);
-            bQuit=true;
+void MycielskiGraphEngine::random_pick_two_vertex_from_range(int &v1, int&v2, const int N, unordered_set<INT>&check_list, uniform_int_distribution<INT>& dist){
+    if(N<=1) { 
+        fprintf(stderr,"Error, try to pick up two distinct random integer number between 0 to %d. Cannot do that since %d smaller than two.", N,N); 
+        exit(1);
+    }
+    INT rnd =0;
+    do{
+        rnd = dist(mt_);  
+    }while(check_list.count(rnd)!=0);
+    check_list.insert(rnd);
+    {//binary search
+        INT low=0, high=N, i=(high+low)/2;
+        while(high-low>1){
+            INT tag = (2*N-i+1)*i/2;
+            if(rnd<tag){
+                high=i;
+            }
+            else{
+                low=i;
+            }
+            i=(high+low)/2;
         }
-    }while(bQuit==false);
+        v1 = i;
+        v2 = rnd-(2*N-i+1)*i/2;
+    }
+    //cerr<<"v1,v2 "<<v1<<" "<<v2<<endl;
     return;
 }
 
