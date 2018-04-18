@@ -41,7 +41,6 @@ void AdjGraph::read_mm_struct_only(const string&file_name){
     bool b_symmetric = true;
     string line;
     stringstream ss;
-    int edge_count=0;
     if(file_name.empty()) {
         fprintf(stderr,"ERR! The matrix file is empty.\n");
         exit(1);
@@ -85,7 +84,8 @@ void AdjGraph::read_mm_struct_only(const string&file_name){
     int nrows, ncols, nnz;
     ss>>nrows>>ncols>>nnz;
     G_.resize(max(nrows, ncols));
-    int entry_counter=0;
+    int entry_counter=0;      
+    int edge_counter =0;       //no self edge 
     if(b_symmetric) {
         do{
             getline(in,line);
@@ -100,10 +100,11 @@ void AdjGraph::read_mm_struct_only(const string&file_name){
                 fprintf(stderr,"Err! Find an entry (row,col)=(%d, %d) in upper part of symmtric matrix %s.\n", row, col, file_name.c_str());
                 exit(1);
             }
+            if(row==col) continue;
             row--; col--;
             G_[row].push_back(col);
             G_[col].push_back(row);
-            edge_count+=2;
+            edge_counter+=1;
         }while( (!in.eof()) && entry_counter<nnz);
     }  // end of if b_symmetric
     else{
@@ -115,6 +116,7 @@ void AdjGraph::read_mm_struct_only(const string&file_name){
             ss.str(line);
             int row, col;
             ss>>row>>col;
+            if(row==col) continue;
             row--; col--;
             G_[row].push_back(col);
             G_[col].push_back(row);
@@ -122,9 +124,9 @@ void AdjGraph::read_mm_struct_only(const string&file_name){
         for(auto &vec : G_){
             sort(vec.begin(), vec.end());
             vec.erase( unique(vec.begin(), vec.end()), vec.end());
-            edge_count+=vec.size();
+            edge_counter+=vec.size();
         }
-        edge_count/=2;
+        edge_counter/=2;
     } // end of else b_symmetric
     
     
@@ -133,7 +135,12 @@ void AdjGraph::read_mm_struct_only(const string&file_name){
         fprintf(stderr,"Error! Matrix file %s size %d %d %d does not contains enough entries %d as expected\nPossibily because of file truncate! Check the files\n", file_name.c_str(), nrows, ncols, nnz, entry_counter);
         exit(1);
     }
-    num_edges_=edge_count;
+    num_edges_=edge_counter;
+
+    int wocao=0;
+    for(auto x:G_){
+        wocao+=x.size();
+    }
 }
 
 // ============================================================================

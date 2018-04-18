@@ -70,8 +70,8 @@ public: void dump();
 
 class MycielskiGraphEngine: public AdjGraph{
 public:
-    MycielskiGraphEngine(): mt_(12345) { reset(); }
-    MycielskiGraphEngine(const string &f): mt_(12345) { if(f.empty()) reset(); else AdjGraph::reset(f); }
+    MycielskiGraphEngine(): mt_(5489u) { reset(); }
+    MycielskiGraphEngine(const string &f): mt_(5489u) { if(f.empty()) reset(); else AdjGraph::reset(f); }
     virtual ~MycielskiGraphEngine(){};
 public:
     virtual void std_propagate(INT steps);

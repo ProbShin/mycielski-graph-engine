@@ -59,7 +59,7 @@ int main( int argc, const char* argv[] ) {
         if(bRnd) ss<<"rnd_";
         if(!seed_file.empty()){ 
             auto tmp = seed_file.substr(seed_file.find_last_of("/\\")+1);
-            ss<<tmp.substr(0, tmp.find_last_of("."));
+            ss<<tmp.substr(0, tmp.find_last_of("."))<<"_";
         }
         ss<<"mc_s"<<s<<".mtx";
         out_file=ss.str();
